@@ -15,7 +15,22 @@ confint(model_logit)
 confint.default(model_logit)
 fitted(model_logit)
 
-ggplot(diam_data, aes(x = carat, y = priceRank)) + geom_point(aes(colour = color, size = cut)) + facet_grid(cut ~ clarity)
+ggplot(diam_data, aes(x = carat, y = cut)) + geom_point(aes(colour = priceRank, size = 1)) + facet_grid(color ~ clarity)
+
+ggplot(diam_data, aes(x = carat, y = price, color = priceRank)) + geom_point() + stat_smooth(method = lm) + facet_grid(priceRank ~ .)
+
+ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ .) + geom_point()
+
+
+
+
+
+
+
+
+
+
+
 
 wald.test(b = coef(model_logit), Sigma = vcov(model_logit), Terms = c(2:6, 7:12, 13:19) )
 
