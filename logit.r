@@ -19,10 +19,14 @@ ggplot(diam_data, aes(x = carat, y = cut)) + geom_point(aes(colour = priceRank, 
 
 ggplot(diam_data, aes(x = carat, y = price, color = priceRank)) + geom_point() + stat_smooth(method = lm) + facet_grid(priceRank ~ .)
 
-ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ .) + geom_point()
+ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ clarity) + geom_point()
 
+diam_data <- within(diam_data, {
+  LL_price <- price - (1.96 * sd(diam_data$price))
+  UL_price <- price + (1.96 * sd(diam_data$price))
+})
 
-
+ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ .) + geom_ribbon(aes(ymin = LL_price, ymax = UL_price, fill = priceRank), alpha = 0.2) + geom_point()
 
 
 
@@ -48,7 +52,7 @@ predicted_priceRank <- data.frame(response = predict(model_logit, newdata = diam
 unique(predict(model_logit, newdata = diam_data, type = "response"))
 unique(round(predict(model_logit, newdata = diam_data, type = "link"), digits = 0))
 
-ggplot(predicted_priceRank, aes(x = log(link), y = response)) + geom_line() 
+ggplot(predicted_priceRank, aes(x = log(link), y = response)) + geom_line()
 
 ################################
 
