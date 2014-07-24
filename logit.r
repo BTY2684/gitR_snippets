@@ -1,6 +1,6 @@
-library(aod)
-library(ggplot2)
-library(effects)
+require(aod)
+require(ggplot2)
+require(effects)
 
 summary(diamonds)
 
