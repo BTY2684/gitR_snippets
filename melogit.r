@@ -84,7 +84,31 @@ sampler <- function(dat, clustervar, replace = TRUE, reps = 1) {
 }
 
 set.seed(20)
-tmp <- sampler(hdp, "DID", reps = 100)
+tmp <- sampler(hdp, "DID", reps = 10)
+
+
+##########  begin test  ##########
+cid <- unique(hdp[, "DID"[1]])
+ncid <- length(cid)
+recid <- sample(cid, size = ncid * reps, replace = TRUE)
+if (replace) {
+  rid <- lapply(seq_along(recid), function(i) {
+    cbind(NewID = i, RowID = sample(which(dat[, clustervar] == recid[i]),
+                                    size = length(which(dat[, clustervar] == recid[i])), replace = TRUE))
+  })
+} else {
+  rid <- lapply(seq_along(recid), function(i) {
+    cbind(NewID = i, RowID = which(dat[, clustervar] == recid[i]))
+  })
+}
+dat <- as.data.frame(do.call(rbind, rid))
+dat$Replicate <- factor(cut(dat$NewID, breaks = c(1, ncid * 1:reps), include.lowest = TRUE,
+                            labels = FALSE))
+dat$NewID <- factor(dat$NewID)
+return(dat)
+##########  end test  ##########
+
+
 bigdata <- cbind(tmp, hdp[tmp$RowID, ])
 
 f <- fixef(m)
