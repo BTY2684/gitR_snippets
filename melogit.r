@@ -26,11 +26,9 @@ ggplot(tmp, aes(x = CancerStage, y = value)) +
   facet_grid(variable ~ .) +
   scale_y_sqrt()
 
-tmp <- melt(hdp[, c("remission", "IL6", "CRP", "LengthofStay", "Experience")],
-            id.vars="remission")
+tmp <- melt(hdp[, c("remission", "IL6", "CRP", "LengthofStay", "Experience")], id.vars="remission")
 ggplot(tmp, aes(factor(remission), y = value, fill=factor(remission))) +
-  geom_boxplot() +
-  facet_wrap(~variable, scales="free_y")
+  geom_boxplot() + facet_wrap(~variable, scales="free_y")
 
 # Below is a list of analysis methods you may have considered.
 #
