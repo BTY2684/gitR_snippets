@@ -1,6 +1,6 @@
-require(aod)
-require(ggplot2)
-require(effects)
+library(aod)
+library(ggplot2)
+library(effects)
 
 summary(diamonds)
 
@@ -9,24 +9,53 @@ diam_data$priceRank <- factor(round(log(diam_data$price), digits = 0) - 5)
 head(diam_data)
 unique(diam_data$priceRank)
 
+tmp_data <- melt(diam_data[, c("priceRank", "price", "carat", "cut", "color", "clarity")], id.vars=c("priceRank", "cut", "color", "clarity"))
+
+ggplot(tmp_data, aes(x = carat, y = price, colour = priceRank)) +
+  geom_point(alpha = .1) + facet_grid(variable ~ value)
+
+ggplot(diam_data, aes(x = carat, y = price, colour = priceRank)) +
+  geom_point(alpha = .1) + facet_grid(cut ~ .)
+
+model_melogit <- glmer(priceRank ~ (1|carat) + cut + color + clarity, data = diam_data, family = binomial, control = glmerControl(optimizer = "bobyqa"), nAGQ = 10)
+print(model_melogit, corr = FALSE)
+(se <- sqrt(diag(vcov(model_melogit))))
+(tab <- cbind(Est = fixef(model_melogit), LL = fixef(model_melogit) - 1.96 * se, UL = fixef(model_melogit) + 1.96 * se))
+
+
+
+
+
+
+
+################################################## logit
 model_logit <- glm(priceRank ~ 0 + carat + cut + color + clarity, data = diam_data, family = binomial(logit))
 summary(model_logit)
 confint(model_logit)
 confint.default(model_logit)
 fitted(model_logit)
 
-ggplot(diam_data, aes(x = carat, y = cut)) + geom_point(aes(colour = priceRank, size = 1)) + facet_grid(color ~ clarity)
+ggplot(diam_data, aes(x = carat, y = price)) + facet_grid(cut ~ .) + geom_point(aes(colour = clarity, size = 1)) + stat_smooth()
 
 ggplot(diam_data, aes(x = carat, y = price, color = priceRank)) + geom_point() + stat_smooth(method = lm) + facet_grid(priceRank ~ .)
 
-ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ clarity) + geom_point()
+ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(clarity ~ .) + facet_grid(clarity ~ cut) + geom_point()
 
-diam_data <- within(diam_data, {
-  LL_price <- price - (1.96 * sd(diam_data$price))
-  UL_price <- price + (1.96 * sd(diam_data$price))
-})
+model_linear <- glm(price ~ 0 + carat + cut + color + clarity, data = diam_data, family = gaussian)
+summary(model_linear)
+confint(model_linear)
+confint.default(model_linear)
+fitted(model_linear)
 
-ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + facet_grid(cut ~ .) + geom_ribbon(aes(ymin = LL_price, ymax = UL_price, fill = priceRank), alpha = 0.2) + geom_point()
+ggplot(diam_data, aes(x = price, y = fitted(model_linear), color = clarity)) + geom_line() + facet_grid(clarity ~ .) + stat_smooth() 
+
+model_exp <- nls(price ~ exp(a + b * carat ), data = na.omit(diam_data), start = list(a = 5, b = 5))
+summary(model_exp)
+confint(model_exp)
+confint.default(model_exp)
+fitted(model_exp)
+
+ggplot(diam_data, aes(x = price, y = fitted(model_exp), color = clarity)) + geom_point() + facet_grid(. ~ clarity) + stat_smooth() 
 
 
 
@@ -34,8 +63,7 @@ ggplot(diam_data, aes(x = carat, y = price, color = clarity)) + stat_smooth() + 
 
 
 
-
-
+####################################
 wald.test(b = coef(model_logit), Sigma = vcov(model_logit), Terms = c(2:6, 7:12, 13:19) )
 
 l <- cbind(0, 0, 0, 1, -1, 0)
@@ -52,7 +80,7 @@ predicted_priceRank <- data.frame(response = predict(model_logit, newdata = diam
 unique(predict(model_logit, newdata = diam_data, type = "response"))
 unique(round(predict(model_logit, newdata = diam_data, type = "link"), digits = 0))
 
-ggplot(predicted_priceRank, aes(x = log(link), y = response)) + geom_line()
+ggplot(predicted_priceRank, aes(x = log(link), y = response)) + geom_line() 
 
 ################################
 
