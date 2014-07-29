@@ -86,24 +86,18 @@ tmp <- sampler(hdp, "DID", reps = 10)
 
 
 ##########  begin test  ##########
-cid <- unique(hdp[, "DID"[1]])
+cid <- unique(hdp[, "DID"])
 ncid <- length(cid)
-recid <- sample(cid, size = ncid * reps, replace = TRUE)
-if (replace) {
+recid <- sample(cid, size = ncid * 10, replace = TRUE)
+
   rid <- lapply(seq_along(recid), function(i) {
-    cbind(NewID = i, RowID = sample(which(dat[, clustervar] == recid[i]),
-                                    size = length(which(dat[, clustervar] == recid[i])), replace = TRUE))
+    cbind(NewID = i, RowID = sample(which(hdp[, "DID"] == recid[i]),
+                                    size = length(which(hdp[, "DID"] == recid[i])), replace = TRUE))
   })
-} else {
-  rid <- lapply(seq_along(recid), function(i) {
-    cbind(NewID = i, RowID = which(dat[, clustervar] == recid[i]))
-  })
-}
+
 dat <- as.data.frame(do.call(rbind, rid))
-dat$Replicate <- factor(cut(dat$NewID, breaks = c(1, ncid * 1:reps), include.lowest = TRUE,
-                            labels = FALSE))
+dat$Replicate <- factor(cut(dat$NewID, breaks = c(1, ncid * 1:10), include.lowest = TRUE, labels = FALSE))
 dat$NewID <- factor(dat$NewID)
-return(dat)
 ##########  end test  ##########
 
 
