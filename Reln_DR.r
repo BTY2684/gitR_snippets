@@ -41,7 +41,8 @@ hist(y)
 
 z = sample(x = seq(from = 1, to = 10, by = 1),
            size = 30000,
-           replace = TRUE)
+           replace = TRUE,
+           prob = dnorm(seq(from = 1, to = 10, by = 1), mean = 7, sd = 1, log = FALSE))
 summary(z)
 length(z)
 hist(z)
@@ -120,11 +121,12 @@ plot(density(retval$CPD))
 plot(density(retval$RPD))
 plot(density(retval[with(retval, unique(RID)),'RPD']))
 
-ggplot(retval, aes(x = Ranking, y = RPD, colour = R_Def)) +
-  geom_line(alpha = 1) + facet_grid(. ~ CID)
+ggplot(retval, aes(x = CPD)) + stat_density(alpha = 0.5, aes(fill=factor(-C_Def)), adjust = 1)
 
-ggplot(retval, aes(x = factor(Ranking), y = RPD, colour = factor(R_Def))) +
-  geom_line(alpha = .1) + facet_grid(factor(CID) ~ .)
+ggplot(retval, aes(x = RPD)) + stat_density(alpha = 0.5, aes(fill=factor(-R_Def)), adjust = 1)
+
+ggplot(retval[with(retval, unique(RID)),], aes(x = RPD)) + stat_density(alpha = 0.5, aes(fill=factor(-R_Def)), adjust = 1)
+
 
 ###
 # default vs non-default Hist plot
