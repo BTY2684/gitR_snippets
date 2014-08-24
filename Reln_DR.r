@@ -12,98 +12,202 @@ pkgImport("plyr")
 pkgImport("iterators")
 pkgImport("foreach")
 pkgImport("doParallel")
-pkgImport("parallel")
 pkgImport("stats")
 pkgImport("xts")
+pkgImport("doSNOW")
+
+# NOTE: From version 0.3-8 onwards snow includes this behavior
+# and thus this custom version of clusterExport is no longer needed
+clusterExport <- local({
+  gets <- function(n, v) { assign(n, v, envir = .GlobalEnv); NULL }
+  function(cl, list, envir = .GlobalEnv) {
+    ## do this with only one clusterCall--loop on slaves?
+    for (name in list) {
+      clusterCall(cl, gets, name, get(name, envir = envir))
+    }
+  }
+})
+
+# Functions
+createCluster = function(noCores, logfile = "/dev/null", export = NULL, lib = NULL) {
+  require(doSNOW)
+  cl <- makeCluster(noCores, type = "SOCK", outfile = logfile)
+  if(!is.null(export)) clusterExport(cl, export)
+  if(!is.null(lib)) {
+    l_ply(lib, function(dum) {
+      clusterExport(cl, "dum", envir = environment())
+      clusterEvalQ(cl, library(dum, character.only = TRUE))
+    })
+  }
+  registerDoSNOW(cl)
+  return(cl)
+}
 
 ###
 # Generate data set
 ###
+samplerRun <- function()
+{
+  require(parallel)
+  require(plyr)
+  require(iterators)
+  require(foreach)
+  require(doParallel)
 
-x = seq(from = 0.01, to = 1, by = 0.001)
-scale = seq(from = min(log(x)), to = max(log(x)), by = (max(log(x)) - min(log(x)))/9)
+  x = seq(from = 0.01, to = 1, by = 0.001)
+  scale = seq(from = min(log(x)), to = max(log(x)), by = (max(log(x)) - min(log(x)))/9)
 
-masterScale <- data.frame('Ranking' = seq_along(scale), 'PD' = round(exp(scale),4))
+  masterScale <- data.frame('Ranking' = seq_along(scale), 'PD' = round(exp(scale),4))
 
-x = sample(x = seq(from = 1, to = 5000, by = 1),
-           size = 30000,
-           replace = TRUE)
-summary(x)
-length(x)
-hist(x)
+  x = sample(x = seq(from = 1, to = 5000, by = 1),
+             size = 30000,
+             replace = TRUE)
+#   summary(x)
+#   length(x)
+#   hist(x)
 
-y = sample(x = seq(from = 1, to = 10, by = 1),
-           size = 30000,
-           replace = TRUE)
-summary(y)
-length(y)
-hist(y)
+  y = sample(x = seq(from = 1, to = 10, by = 1),
+             size = 30000,
+             replace = TRUE)
+#   summary(y)
+#   length(y)
+#   hist(y)
 
-z = sample(x = seq(from = 1, to = 10, by = 1),
-           size = 30000,
-           replace = TRUE,
-           prob = dnorm(seq(from = 1, to = 10, by = 1), mean = 7, sd = 1, log = FALSE))
-summary(z)
-length(z)
-hist(z)
+  z = sample(x = seq(from = 1, to = 10, by = 1),
+             size = 30000,
+             replace = TRUE,
+             prob = dnorm(seq(from = 1, to = 10, by = 1), mean = 7, sd = 1, log = FALSE))
+#   summary(z)
+#   length(z)
+#   hist(z)
 
-dataSet <- data.frame('RID' = x,
-                      'CID' = y,
-                      'Ranking' = z,
-                      'CPD' = as.numeric(masterScale[match(z, masterScale$Ranking), 'PD']))
-summary(dataSet)
-dim(dataSet)
+  dataSet <- data.frame('RID' = x,
+                        'CID' = y,
+                        'Ranking' = z,
+                        'CPD' = as.numeric(masterScale[match(z, masterScale$Ranking), 'PD']))
+#   summary(dataSet)
+#   dim(dataSet)
 
-dataSet <- within(dataSet, {
-  C_Def <- 0
-})
+  dataSet <- within(dataSet, {
+    C_Def <- 0
+  })
 
-dataSet$C_Def[dataSet$CPD == 1.0] <- 1
-dataSet <- dataSet[with(dataSet,order(RID, CID, CPD)),]
-length(unique(dataSet$RID))
-dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
-dataSet <- dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==FALSE,]
-dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
-summary(dataSet)
-dim(dataSet)
+  dataSet$C_Def[dataSet$CPD == 1.0] <- 1
+  dataSet <- dataSet[with(dataSet,order(RID, CID, CPD)),]
+#   length(unique(dataSet$RID))
+#   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
+  dataSet <- dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==FALSE,]
+#   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
+#   summary(dataSet)
+#   dim(dataSet)
 
+
+  ###
+  # Initialize parameters
+  ###
+  detectCores()
+  workers <- makeCluster(detectCores())
+  registerDoParallel(workers)
+  getDoParWorkers()
+  # data step
+  retval <- ddply( .data=dataSet,
+                   .variables=c('RID'),
+                   .fun = function(subdata)
+                   {
+                     subdata$R_Def = rep(max(subdata$C_Def), length(subdata$C_Def))
+                     subdata$RPD = 1 - prod(1-subdata$CPD)
+                     return(subdata)
+                   },
+                   .parallel = TRUE
+  )
+  ###
+  # Clean up parallel settings
+  ###
+  stopCluster(workers)
+
+#   head(retval)
+#   summary(retval)
+#   dim(retval)
+#
+#   retval[retval$R_Def==1,][1:20,]
+#   retval[1:20,]
+
+  ###
+  # Output default rates on Customer, Cust_Relation, Relationship
+  ###
+#   mean(retval$C_Def)
+#   mean(retval$R_Def)
+#   mean(retval[with(retval, unique(RID)),'R_Def'])
+  return(c(mean(retval$C_Def), mean(retval$R_Def), mean(retval[with(retval, unique(RID)),'R_Def']), mean(retval$CPD), mean(retval$RPD), mean(retval[with(retval, unique(RID)),'RPD'])) )
+}
+
+paraTast <- function(df, FUNC)
+{
+  require(parallel)
+  require(plyr)
+  require(iterators)
+  require(foreach)
+  require(doParallel)
+
+  detectCores()
+  workers <- createCluster(detectCores(), export = list(as.character(substitute(FUNC))), lib = list("parallel", "plyr", "iterators", "foreach", "doParallel"))
+  registerDoParallel(workers)
+  getDoParWorkers()
+
+  retval <- ddply( .data=df,
+                   .variables=names(df),
+                   .fun = function(subdata)
+                   {
+                     subdata$ret = t(FUNC() )
+                     return(subdata)
+                   },
+#                    .progress = progress_text(char = "-"),
+                   .parallel = TRUE
+  )
+
+  stopCluster(workers)
+  return(retval)
+}
+
+data.df <- data.frame('iter' = seq(1, 5000, 1))
+system.time(a <- paraTast(data.df, samplerRun))
+write.csv(a, file = "~/GitPro/tmpOutput/RelnDR.csv", row.names = FALSE)
+
+a <- read.csv(file = "~/GitPro/tmpOutput/RelnDR.csv")
+
+data.df$custDR <- a$ret.1
+data.df$custRelnDR <- a$ret.2
+data.df$relnDR <- a$ret.3
+data.df$custPD <- a$ret.4
+data.df$custRelnPD <- a$ret.5
+data.df$relnPD <- a$ret.6
+
+summary(data.df)
 
 ###
-# Initialize parameters
+# Default Rate plot
+# on Customer, Cust_Relation, Relationship
 ###
-detectCores()
-workers <- makeCluster(detectCores())
-registerDoParallel(workers)
-getDoParWorkers()
-# data step
-retval <- ddply( .data=dataSet,
-                 .variables=c('RID'),
-                 .fun = function(subdata)
-                 {
-                   subdata$R_Def = rep(max(subdata$C_Def), length(subdata$C_Def))
-                   subdata$RPD = 1 - prod(1-subdata$CPD)
-                   return(subdata)
-                 },
-                 .parallel = TRUE
-)
-###
-# Clean up parallel settings
-###
-stopCluster(workers)
 
-head(retval)
-summary(retval)
-dim(retval)
+ggplot(data.df[1:500,], aes(iter)) +
+  geom_line(aes(y = custDR, colour = "Cust DR")) +
+  geom_line(aes(y = mean(custDR), colour = "Mean Cust DR")) +
+  geom_line(aes(y = custRelnDR, colour = "Cust Adjusted Reln DR")) +
+  geom_line(aes(y = mean(custRelnDR), colour = "Mean Cust Adjusted Reln DR")) +
+  geom_line(aes(y = relnDR, colour = "Reln DR")) +
+  geom_line(aes(y = mean(relnDR), colour = "Mean Reln DR"), size = 1) +
+  ggtitle("Cust vs Reln vs Cust Adjusted Reln Default Rates") +
+  theme(plot.title = element_text(lineheight=.8, face="bold"),
+        legend.position = "bottom") +
+  xlab("Senarios") +
+  ylab("Default Rate") +
+  scale_colour_discrete(name = "Colour Guide")
 
-retval[retval$R_Def==1,][1:20,]
-retval[1:20,]
 
-###
-# Output default rates on Customer, Cust_Relation, Relationship
-###
-mean(retval$C_Def)
-mean(retval$R_Def)
-mean(retval[with(retval, unique(RID)),'R_Def'])
+
+
+
+
 
 ###
 # default vs non-default density plot
@@ -135,3 +239,77 @@ ggplot(retval[with(retval, unique(RID)),], aes(x = RPD)) + stat_density(alpha = 
 hist(retval$CPD)
 hist(retval$RPD)
 hist(retval[with(retval, unique(RID)),'RPD'])
+
+######################################################
+# distribution test
+######################################################
+data.df <- data.frame('iter' = seq(1,5000,1))
+
+###
+# Initialize parameters
+###
+detectCores()
+workers <- makeCluster(detectCores())
+registerDoParallel(workers)
+getDoParWorkers()
+# data step
+retval <- ddply( .data=data.df,
+                 .variables=c('iter'),
+                 .fun = function(subdata)
+                 {
+                   subdata$unifSum = sum(runif(1), runif(1))
+                   subdata$unifProd = prod(runif(1), runif(1))
+                   subdata$normalSum = sum(rnorm(1), rnorm(1))
+                   subdata$normalProd = prod(rnorm(1), rnorm(1))
+                   subdata$norm_unif_sum = sum(runif(1), rnorm(1))
+                   subdata$norm_unif_prod = prod(runif(1), rnorm(1))
+                   subdata$ratio = prod(rnorm(1), rnorm(1)) / sum(rnorm(1), rnorm(1))
+
+                   return(subdata)
+                 },
+                 .parallel = TRUE
+)
+###
+# Clean up parallel settings
+###
+stopCluster(workers)
+
+head(retval)
+summary(retval)
+dim(retval)
+
+
+ggplot(retval, aes(x = normalProd)) + stat_density(alpha = 0.5, adjust = 1)
+
+test <- rnorm(5000)
+## result : sum of uniform distribution is NOT 'Normal'
+## Perform the test
+ggplot(retval, aes(x = unifSum)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$unifSum)
+ks.test(retval$unifSum, retval$ratio)
+qqnorm(retval$unifSum);qqline(retval$unifSum, col = 2)
+
+ggplot(retval, aes(x = unifProd)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$unifProd)
+ks.test(retval$unifProd, retval$ratio)
+qqnorm(retval$unifProd);qqline(retval$unifProd, col = 2)
+
+ggplot(retval, aes(x = normalSum)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$normalSum)
+ks.test(retval$normalSum, retval$ratio)
+qqnorm(retval$normalSum);qqline(retval$normalSum, col = 2)
+
+ggplot(retval, aes(x = norm_unif_sum)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$norm_unif_sum)
+qqnorm(retval$norm_unif_sum);qqline(retval$norm_unif_sum, col = 2)
+
+ggplot(retval, aes(x = norm_unif_prod)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$norm_unif_prod)
+qqnorm(retval$norm_unif_prod);qqline(retval$norm_unif_prod, col = 2)
+
+ggplot(retval, aes(x = ratio)) + stat_density(alpha = 0.5, adjust = 1)
+shapiro.test(retval$ratio)
+qqnorm(retval$ratio);qqline(retval$ratio, col = 2)
+
+
+
