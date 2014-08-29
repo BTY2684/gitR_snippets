@@ -1,3 +1,13 @@
+rm(list=ls(all=TRUE))
+pkgImport <- function(x)
+{
+  if (!require(x,character.only = TRUE))
+  {
+    install.packages(x,dep=TRUE)
+    if(!require(x,character.only = TRUE)) stop("Package not found")
+  }
+}
+
 ###
 # Included libraries
 ###
@@ -209,9 +219,9 @@ paraTast <- function(df, FUNC)
 data.df <- data.frame('iter' = seq(1, 5000, 1))
 
 system.time(a <- paraTast(data.df, samplerRun))
-write.csv(a, file = "~/GitPro/tmpOutput/RelnDREL.csv", row.names = FALSE)
+write.csv(a, file = "E:/GitHub/gitR_snippets/tmpOutput/RelnDREL.csv", row.names = FALSE)
 
-a <- read.csv(file = "~/GitPro/tmpOutput/RelnDREL.csv")
+a <- read.csv(file = "E:/GitHub/gitR_snippets/tmpOutput/RelnDREL.csv")
 
 data.df$custDR <- a$ret.1
 data.df$custRelnDR <- a$ret.2
@@ -230,7 +240,7 @@ summary(data.df)
 # on Customer, Cust_Relation, Relationship
 ###
 
-ggplot(data.df, aes(iter)) +
+ggplot(data.df[1:300,], aes(iter)) +
   geom_line(aes(y = custDR, colour = "Cust DR")) +
   geom_line(aes(y = mean(custDR), colour = "Mean Cust DR")) +
   geom_line(aes(y = custRelnDR, colour = "Reln Adjusted Cust DR")) +
@@ -249,7 +259,7 @@ ggplot(data.df, aes(iter)) +
 # on Customer, Cust_Relation, Relationship
 ###
 
-ggplot(data.df, aes(iter)) +
+ggplot(data.df[1:300,], aes(iter)) +
   geom_line(aes(y = custEL, colour = "Cust EL")) +
   geom_line(aes(y = mean(custEL), colour = "Mean Cust EL")) +
   geom_line(aes(y = custRelnEL, colour = "Reln Adjusted Cust EL")) +
