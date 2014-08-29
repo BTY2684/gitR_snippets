@@ -62,31 +62,40 @@ samplerRun <- function()
   x = sample(x = seq(from = 1, to = 5000, by = 1),
              size = 30000,
              replace = TRUE)
-#   summary(x)
-#   length(x)
-#   hist(x)
+  #   summary(x)
+  #   length(x)
+  #   hist(x)
 
   y = sample(x = seq(from = 1, to = 10, by = 1),
              size = 30000,
              replace = TRUE)
-#   summary(y)
-#   length(y)
-#   hist(y)
+  #   summary(y)
+  #   length(y)
+  #   hist(y)
 
   z = sample(x = seq(from = 1, to = 10, by = 1),
              size = 30000,
              replace = TRUE,
              prob = dnorm(seq(from = 1, to = 10, by = 1), mean = 7, sd = 1, log = FALSE))
-#   summary(z)
-#   length(z)
-#   hist(z)
+  #   summary(z)
+  #   length(z)
+  #   hist(z)
+
+  v = sample(x = seq(from = 10000, to = 10000000, by = 10000),
+             size = 30000,
+             replace = TRUE)
+  #     summary(v)
+  #     length(v)
+  #     hist(v)
 
   dataSet <- data.frame('RID' = x,
                         'CID' = y,
                         'Ranking' = z,
-                        'CPD' = as.numeric(masterScale[match(z, masterScale$Ranking), 'PD']))
-#   summary(dataSet)
-#   dim(dataSet)
+                        'CPD' = as.numeric(masterScale[match(z, masterScale$Ranking), 'PD']),
+                        'C_Value' = v)
+
+  #   summary(dataSet)
+  #   dim(dataSet)
 
   dataSet <- within(dataSet, {
     C_Def <- 0
@@ -94,12 +103,12 @@ samplerRun <- function()
 
   dataSet$C_Def[dataSet$CPD == 1.0] <- 1
   dataSet <- dataSet[with(dataSet,order(RID, CID, CPD)),]
-#   length(unique(dataSet$RID))
-#   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
+  #   length(unique(dataSet$RID))
+  #   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
   dataSet <- dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==FALSE,]
-#   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
-#   summary(dataSet)
-#   dim(dataSet)
+  #   dim(dataSet[duplicated(paste0(dataSet$RID, '+', dataSet$CID))==TRUE,])
+  #   summary(dataSet)
+  #   dim(dataSet)
 
 
   ###
@@ -115,7 +124,10 @@ samplerRun <- function()
                    .fun = function(subdata)
                    {
                      subdata$R_Def = rep(max(subdata$C_Def), length(subdata$C_Def))
-                     subdata$RPD = 1 - prod(1-subdata$CPD)
+                     subdata$RPD = 1 - prod(1 - subdata$CPD)
+                     subdata$R_Value = sum(subdata$C_Value)
+                     subdata$R_LGD = sum(subdata$C_Def*subdata$C_Value)/sum(subdata$C_Value)
+                     subdata$R_Loss = sum(subdata$C_Def*subdata$C_Value)
                      return(subdata)
                    },
                    .parallel = TRUE
@@ -125,21 +137,46 @@ samplerRun <- function()
   ###
   stopCluster(workers)
 
-#   head(retval)
-#   summary(retval)
-#   dim(retval)
-#
-#   retval[retval$R_Def==1,][1:20,]
-#   retval[1:20,]
+  #   head(retval)
+  #   summary(retval)
+  #   dim(retval)
+  #
+  #   retval[retval$R_Def==1,][1:20,]
+  #   retval[1:20,]
 
   ###
   # Output default rates on Customer, Cust_Relation, Relationship
   ###
-#   mean(retval$C_Def)
-#   mean(retval$R_Def)
-#   mean(retval[with(retval, unique(RID)),'R_Def'])
-  return(c(mean(retval$C_Def), mean(retval$R_Def), mean(retval[with(retval, unique(RID)),'R_Def']), mean(retval$CPD), mean(retval$RPD), mean(retval[with(retval, unique(RID)),'RPD'])) )
+  #   mean(retval$C_Def)
+  #   mean(retval$R_Def)
+  #   mean(retval[with(retval, unique(RID)),'R_Def'])
+  return(c(mean(retval$C_Def),
+           mean(retval$R_Def),
+           mean(retval[duplicated(retval$RID)==FALSE,'R_Def']),
+           mean(retval$CPD),
+           mean(retval$RPD),
+           mean(retval[duplicated(retval$RID)==FALSE,'RPD']),
+
+#            cust PD = mean(retval$C_Def)
+#            cust LGD = 1
+#            cust EAD = sum(retval$C_Def*retval$C_Value)
+           mean(retval$C_Def)*sum(retval$C_Def*retval$C_Value),
+
+#            reln_adj_cust PD = mean(retval$R_Def)
+#            reln_adj_cust LGD = sum(retval$R_Loss)/sum(retval$R_Def*retval$R_Value)
+#            reln_adj_cust EAD = sum(retval$C_Def*retval$R_Value*retval$R_LGD)
+
+           mean(retval$R_Def)*sum(retval$R_Loss)/sum(retval$R_Def*retval$R_Value)*sum(retval$C_Def*retval$R_Value*retval$R_LGD),
+
+#            reln PD = mean(retval[duplicated(retval$RID)==FALSE,'R_Def'])
+#            reln LGD = sum(retval[duplicated(retval$RID)==FALSE,'R_Loss'])/sum(retval[duplicated(retval$RID)==FALSE,'R_Value']*retval[duplicated(retval$RID)==FALSE,'R_Def'])
+#            reln EAD = sum(retval[duplicated(retval$RID)==FALSE,'R_Value']*retval[duplicated(retval$RID)==FALSE,'R_LGD'])
+
+           mean(retval[duplicated(retval$RID)==FALSE,'R_Def'])*sum(retval[duplicated(retval$RID)==FALSE,'R_Loss'])/sum(retval[duplicated(retval$RID)==FALSE,'R_Value']*retval[duplicated(retval$RID)==FALSE,'R_Def'])*sum(retval[duplicated(retval$RID)==FALSE,'R_Value']*retval[duplicated(retval$RID)==FALSE,'R_LGD'])
+  ) )
 }
+
+# LGD is obtained by dividing total losses by the total amount of assets in default.
 
 paraTast <- function(df, FUNC)
 {
@@ -161,7 +198,7 @@ paraTast <- function(df, FUNC)
                      subdata$ret = t(FUNC() )
                      return(subdata)
                    },
-#                    .progress = progress_text(char = "-"),
+                   #                    .progress = progress_text(char = "-"),
                    .parallel = TRUE
   )
 
@@ -170,10 +207,11 @@ paraTast <- function(df, FUNC)
 }
 
 data.df <- data.frame('iter' = seq(1, 5000, 1))
-system.time(a <- paraTast(data.df, samplerRun))
-write.csv(a, file = "~/GitPro/tmpOutput/RelnDR.csv", row.names = FALSE)
 
-a <- read.csv(file = "~/GitPro/tmpOutput/RelnDR.csv")
+system.time(a <- paraTast(data.df, samplerRun))
+write.csv(a, file = "~/GitPro/tmpOutput/RelnDREL.csv", row.names = FALSE)
+
+a <- read.csv(file = "~/GitPro/tmpOutput/RelnDREL.csv")
 
 data.df$custDR <- a$ret.1
 data.df$custRelnDR <- a$ret.2
@@ -181,6 +219,9 @@ data.df$relnDR <- a$ret.3
 data.df$custPD <- a$ret.4
 data.df$custRelnPD <- a$ret.5
 data.df$relnPD <- a$ret.6
+data.df$custEL <- a$ret.7
+data.df$custRelnEL <- a$ret.8
+data.df$relnEL <- a$ret.9
 
 summary(data.df)
 
@@ -189,11 +230,11 @@ summary(data.df)
 # on Customer, Cust_Relation, Relationship
 ###
 
-ggplot(data.df[1:500,], aes(iter)) +
+ggplot(data.df, aes(iter)) +
   geom_line(aes(y = custDR, colour = "Cust DR")) +
   geom_line(aes(y = mean(custDR), colour = "Mean Cust DR")) +
-  geom_line(aes(y = custRelnDR, colour = "Cust Adjusted Reln DR")) +
-  geom_line(aes(y = mean(custRelnDR), colour = "Mean Cust Adjusted Reln DR")) +
+  geom_line(aes(y = custRelnDR, colour = "Reln Adjusted Cust DR")) +
+  geom_line(aes(y = mean(custRelnDR), colour = "Mean Reln Adjusted Cust DR")) +
   geom_line(aes(y = relnDR, colour = "Reln DR")) +
   geom_line(aes(y = mean(relnDR), colour = "Mean Reln DR"), size = 1) +
   ggtitle("Cust vs Reln vs Cust Adjusted Reln Default Rates") +
@@ -201,6 +242,25 @@ ggplot(data.df[1:500,], aes(iter)) +
         legend.position = "bottom") +
   xlab("Senarios") +
   ylab("Default Rate") +
+  scale_colour_discrete(name = "Colour Guide")
+
+###
+# Expected Loss plot
+# on Customer, Cust_Relation, Relationship
+###
+
+ggplot(data.df, aes(iter)) +
+  geom_line(aes(y = custEL, colour = "Cust EL")) +
+  geom_line(aes(y = mean(custEL), colour = "Mean Cust EL")) +
+  geom_line(aes(y = custRelnEL, colour = "Reln Adjusted Cust EL")) +
+  geom_line(aes(y = mean(custRelnEL), colour = "Mean Reln Adjusted Cust EL")) +
+  geom_line(aes(y = relnEL, colour = "Reln DR")) +
+  geom_line(aes(y = mean(relnEL), colour = "Mean Reln EL"), size = 1) +
+  ggtitle("Cust vs Reln vs Cust Adjusted Reln Expected Loss") +
+  theme(plot.title = element_text(lineheight=.8, face="bold"),
+        legend.position = "bottom") +
+  xlab("Senarios") +
+  ylab("Expected Loss") +
   scale_colour_discrete(name = "Colour Guide")
 
 
