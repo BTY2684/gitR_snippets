@@ -254,7 +254,7 @@ ggplot(data.df, aes(iter)) +
   geom_line(aes(y = mean(custEL), colour = "Mean Cust EL")) +
   geom_line(aes(y = custRelnEL, colour = "Reln Adjusted Cust EL")) +
   geom_line(aes(y = mean(custRelnEL), colour = "Mean Reln Adjusted Cust EL")) +
-  geom_line(aes(y = relnEL, colour = "Reln DR")) +
+  geom_line(aes(y = relnEL, colour = "Reln EL")) +
   geom_line(aes(y = mean(relnEL), colour = "Mean Reln EL"), size = 1) +
   ggtitle("Cust vs Reln vs Cust Adjusted Reln Expected Loss") +
   theme(plot.title = element_text(lineheight=.8, face="bold"),
