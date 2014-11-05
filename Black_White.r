@@ -1163,3 +1163,67 @@ tmp.df[, c(rev(names(ts.df1)[-1])[1:1])]
 dim(tmp.df)
 head(tmp.df)
 tail(tmp.df)
+
+
+### clean up
+
+data.df1 <- read.csv("Z:/tempData/wholePeriod_obs.csv")
+data.df1[1:20,]
+
+for(i in seq(2, 89, 1))
+{
+  for(j in seq(0, 11, 1))
+  {
+    data.df1[, i+j] = as.character(data.df1[, i+j])
+    keys = which(!(data.df1[, i+j]%in%c('l', 'd', 'L', 'D', 0)))
+    data.df1[keys, i+j] = 0
+  }
+}
+
+data.df1[1:20,]
+class(data.df1[, 3])
+
+write.csv(data.df1, "Z:/tempData/whole_obs.csv")
+
+### loop
+
+data.df <- read.csv("Z:/tempData/wholePeriod_defaultUpdate.csv")
+head(tmp.df[,2:13])
+head(tmp.df[,89:100])
+
+data.df[1:20,]
+
+for(i in seq(2, 89, 1))
+{
+  for(j in seq(0, 11, 1))
+  {
+    data.df[, i+j] = as.character(data.df[, i+j])
+    keys = which(!(data.df[, i+j]%in%c('l', 'd', 'L', 'D', 0)))
+    data.df[keys, i+j] = 0
+  }
+}
+
+data.df[1:20,]
+class(data.df[, 3])
+
+tmp.df <- data.df
+tmp.df[tmp.df$ID==108.3,]
+
+for(i in seq(2, 89, 1))
+{
+  for(j in seq(1, 11, 1))
+  {
+    keys = which(substr(tmp.df[, i], 1, 1)=='D' &
+                   substr(tmp.df[, i + j], 1, 1)=='L')
+    for(k in seq(i + j, i + 11, 1))
+    {
+      tmp.df[keys, k] = paste0(substr(tmp.df[keys, k], 1, 1), '/d')
+    }
+  }
+}
+
+tmp.df[tmp.df$ID==108.3,]
+tmp.df[tmp.df$ID==3510.2,]
+
+write.csv(tmp.df, "Z:/tempData/whole_defaultUpdate.csv")
+
