@@ -60,9 +60,7 @@ bootpara <- boot(faithful$waiting, fit, R = 1000)
 boot.ci(bootpara, type = "bca", index = 1)
 boot.ci(bootpara, type = "bca", index = 2)
 boot.ci(bootpara, type = "bca", index = 3)
-layout(matrix(1:2, ncol = 2))
-bootplot(bootpara, 2, main = expression(mu[1]))
-bootplot(bootpara, 3, main = expression(mu[2]))
+
 bootplot <- function(b, index, main = "") {
   dens <- density(b$t[, index])
   ci <- boot.ci(b, type = "bca", index = index)$bca[4:5]
@@ -74,3 +72,7 @@ bootplot <- function(b, index, main = "") {
   points(ci[2], y, pch = ")")
   points(est, y, pch = 19)
 }
+
+layout(matrix(1:2, ncol = 2))
+bootplot(bootpara, 2, main = expression(mu[1]))
+bootplot(bootpara, 3, main = expression(mu[2]))
