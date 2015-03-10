@@ -46,3 +46,21 @@ summary(residuals2)
 hist(residuals2)
 
 mcmc2.5000 <- mcmcsamp(fit2, saveb = TRUE, n = 5000)
+
+# customized model
+
+(fit3 <- lmer(L_rate ~ 1 + R_ind + R_sec + (1|T_ind/T_sec/T_prod), data.df, REML=F))
+summary(fit3)
+
+fixef(fit3)
+ranef(fit3)
+coef(fit3)
+
+est3 <- fitted(fit3)
+summary(est3)
+
+residuals3 <- resid(fit3)
+summary(residuals3)
+hist(residuals3)
+
+mcmc3.5000 <- mcmcsamp(fit3, saveb = TRUE, n = 5000)
