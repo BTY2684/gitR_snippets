@@ -25,8 +25,8 @@ boot.sum <- function(data, indices)
   return(c(sum(d$d1), sum(d$d2)))
 }
 
-a <- rnorm(1000)
-b <- rnorm(1000)
+a <- rnorm(1000, 0, 1)
+b <- rnorm(1000, 0, 0.5)
 
 df <- data.frame('d1' = a, 'd2' = b)
 
@@ -64,5 +64,6 @@ bootplot(results, 1, main = expression(mu[1]))
 bootplot(results, 2, main = expression(mu[2]))
 
 
-plot(density(results$t[, 1]), col = 'red')
-lines(density(results$t[, 2]), col = 'blue')
+r.plot <- melt(results$t)
+
+ggplot(r.plot, aes(value, fill = factor(Var2))) + geom_histogram(alpha = 0.6, aes(y=..density..), binwidth=5) + geom_density(alpha=.2, aes(linetype=factor(Var2)), size=1) + geom_vline(aes(xintercept=mean(results$t[, 1])), color="red", size=1, linetype="dashed", alpha = 0.6) + geom_vline(aes(xintercept=mean(results$t[, 2])), color="blue", size=1, linetype="solid", alpha = 0.6)
