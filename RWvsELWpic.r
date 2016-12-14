@@ -7,21 +7,45 @@ rw<-function(pd=0.02, lgd=0.4, m=1)
   return(RW)
 } 
 
+rw.pd1<-function(pd1=0.02, pd2=0.02, lgd=0.4, m=1)
+{
+  R = 0.12 * (1- exp(-50*(pd1)))/(1-exp(-50))+ 0.24 * (1-(1-exp(-50*(pd1)))/(1-exp(-50)))
+  b = (0.11852 - 0.05478 * log((pd1)))^2
+  K = (lgd * pnorm(qnorm(pd1)/sqrt(1-R) + sqrt(R/(1-R)) * qnorm(0.999))-pd2*lgd) / (1-1.5*b) * (1 +(m - 2.5) * b)
+  RW = K * 1.06
+  return(RW)
+} 
+
+rw.pd2<-function(pd1=0.02, pd2=0.02, lgd=0.4, m=1)
+{
+  R = 0.12 * (1- exp(-50*(pd2)))/(1-exp(-50))+ 0.24 * (1-(1-exp(-50*(pd2)))/(1-exp(-50)))
+  b = (0.11852 - 0.05478 * log((pd2)))^2
+  K = (lgd * pnorm(qnorm(pd2)/sqrt(1-R) + sqrt(R/(1-R)) * qnorm(0.999))-pd1*lgd) / (1-1.5*b) * (1 +(m - 2.5) * b)
+  RW = K * 1.06
+  return(RW)
+} 
+
 crr <- c('1.1', '1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '4.1', '4.2', '4.3', '5.1', '5.2', '5.3', '6.1', '6.2', '7.1', '7.2', '8.1', '8.2', '8.3')
 pd <- c(0.0002, 0.0004, 0.0007, 0.0013, 0.0022, 0.0037, 0.0063, 0.0087, 0.012, 0.0165, 0.0225, 0.0305, 0.042, 0.0575, 0.0785, 0.1, 0.13, 0.19, 0.36, 0.75)
 lgd <- seq(0.05, 1, 0.05)
 
-df <- expand.grid(pd = pd, lgd = lgd, KEEP.OUT.ATTRS = FALSE)
-df$ELW <- df$pd*df$lgd
-df$RW <-rw(df$pd, df$lgd)
+df <- expand.grid(pd1 = pd, pd2 = pd, lgd = lgd, KEEP.OUT.ATTRS = FALSE)
+# df$ELW.1 <- df$pd1*df$lgd
+# df$ELW.2 <- df$pd2*df$lgd
+# df$RW.high <-rw(df$pd1, df$lgd)
+# df$RW.low <-rw(df$pd2, df$lgd)
+df$RW.1 <-rw.pd1(df$pd1, df$pd2, df$lgd)
+df$RW.2 <-rw.pd2(df$pd1, df$pd2, df$lgd)
 
-df.melt <- melt(df,id=c("pd","lgd"))
+df.melt.0 <- melt(df,id=c("pd1", "pd2","lgd"))
+
+df.melt <- df.melt.0[df.melt.0$pd1>df.melt.0$pd2,]
 
 head(df.melt)
 
 var_labeller <- function(var, value){
   value <- as.character(value)
-  if (var=="pd") { 
+  if (var=="pd1") { 
     value[value==0.0002] <- "CRR 1.1"
     value[value==0.0004] <- "CRR 1.2"
     value[value==0.0007] <- "CRR 2.1"
@@ -43,6 +67,7 @@ var_labeller <- function(var, value){
     value[value=="0.36"] <- "CRR 8.2"
     value[value=="0.75"] <- "CRR 8.3"
   }
+  
   if (var=="lgd") { 
     value[value=="0.05"] <- "LGD = 0.05 (5%)"
     value[value=="0.1"] <- "LGD = 0.1 (10%"
@@ -68,15 +93,18 @@ var_labeller <- function(var, value){
   if (var=="variable") { 
     value[value=="ELW"] <- "PD * LGD"
     value[value=="RW"] <- "Risk Weight"
+    value[value=="RW.1"] <- "Risk Weight PD1"
+    value[value=="RW.2"] <- "Risk Weight PD2"
   }
   return(value)
 }
 
 df.melt$Legend <- var_labeller('variable', df.melt$variable)
-df.melt$pd.Lab <- var_labeller('pd', df.melt$pd)
+df.melt$pd.Lab <- var_labeller('pd1', df.melt$pd1)
 df.melt$lgd.Lab <- var_labeller('lgd', df.melt$lgd)
 
-head(df.melt)
+head(df.melt[df.melt$variable=='RW.low' & df.melt$pd.Lab=='CRR 8.2',])
+
 d <- ggplot(df.melt, aes(x = lgd, y = value, colour = Legend)) + geom_line() + theme(aspect.ratio = 1)
 d + facet_wrap(~ pd.Lab)
 
@@ -108,7 +136,7 @@ d1 <- d1 + geom_segment(aes(x = 0.75, y = df.melt$value[df.melt$pd==0.19&df.melt
 d1
   
 
-p <- ggplot(df.melt, aes(x = pd, y = value, colour = Legend)) + geom_line() + theme(aspect.ratio = 1) 
+p <- ggplot(df.melt, aes(x = pd1, y = value, colour = Legend)) + geom_line() + theme(aspect.ratio = 1) 
 p + facet_wrap(~ lgd.Lab)
 
 
